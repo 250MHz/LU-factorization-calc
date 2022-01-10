@@ -155,6 +155,7 @@
       document.getElementById('U').textContent = '$$U=' + UString + '$$';
       MathJax.typeset();
       document.getElementById('plaintext').textContent = 'Plaintext:\r\n\r\n[' + nerdamer('A').toString().slice(7, -1) + ']\r\n\r\n[' + nerdamer('L').toString().slice(7, -1) + ']\r\n\r\n[' + nerdamer('U').toString().slice(7, -1) + ']';
+      nerdamer.clearVars();
     }
     document.addEventListener('keyup', function(event) {
       if (event.keyCode === 13) {

@@ -82,7 +82,7 @@
         return;
       }
       if (matrixString.includes('z_')) {
-        document.getElementById('note').innerText = 'Improper format, cannot have "z_" in the input. See usage notes.'; 
+        document.getElementById('note').textContent = 'Improper format, cannot have "z_" in the input. See usage notes.'; 
         return;
       }
       document.getElementById('note').textContent = '';

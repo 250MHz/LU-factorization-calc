@@ -1,0 +1,48 @@
+#plaintext {
+  font-family: monospace;
+  white-space: pre-line;
+}
+
+#note {
+  color: rgb(255, 0, 0);
+}
+
+article {
+  max-width: 780px;
+  width: 100%;
+  /* justify-content: center; */
+  /* position: relative; */
+  margin: 30px auto;
+}
+
+h1 {
+  text-align: center;
+}
+
+body {
+  font-family: sans-serif;
+}
+
+p.description {
+  text-align: center;
+}
+
+p.definition {
+  padding-left: 2em;
+}
+
+span.texhtml {
+  font-family: "Nimbus Roman No9 L","Times New Roman",Times,serif;
+  font-size: 118%;
+  line-height: 1;
+  white-space: nowrap;
+  -moz-font-feature-settings: "lnum","tnum","kern" 0;
+  -webkit-font-feature-settings: "lnum","tnum","kern" 0;
+  font-feature-settings: "lnum","tnum","kern" 0;
+  font-variant-numeric: lining-nums tabular-nums;
+  font-kerning: none;
+}
+
+table.input * {
+  width: 100%;
+}

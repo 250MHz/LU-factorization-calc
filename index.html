@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>LU Factorization Calculator</title>
+    <link rel="stylesheet" href="style.css">
+    <meta charset="utf-8">
+    <meta name="description" content="Performs an LU factorization without pivoting of a matrix.">
+    <script src="nerdamer.core.js"></script>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script>
+      MathJax = {
+        // https://docs.mathjax.org/en/v3.0-latest/options/output/index.html#options-common-to-all-output-processors
+        chtml: { displayAlign: 'left' }
+      }
+    </script>
+  </head>
+  <body>
+    <article>
+      <header>
+        <h1>LU Factorization Calculator</h1>
+        <p class='description'>Calculator for performing LU factorization without pivoting of a square matrix.</p>
+        <p>The definition for LU factorization (aka LU decomposition) used here is</p>
+        <p class='definition'>
+          <i>
+            Let <span class="texhtml">A</span> be a square matrix. A presentation <span class="texhtml">A = LU</span>, 
+            in which <span class="texhtml">L</span> is unit lower triangular and <span class="texhtml">U</span> is upper 
+            triangular, is called an <span class="texhtml">LU</span> factorization of <span class="texhtml">A</span>. 
+          </i>
+        </p>
+        <h4>Usage notes</h4>
+        <ul>
+          <li>Input a matrix in the form of a 2D array in JavaScript</li>
+          <ul>
+            <li>
+              E.g., to find the factorization of \(\begin{bmatrix}1+3i & -\pi \cr
+              \frac{13}{2} & 3 \end{bmatrix}\) input <code>[[1+3i,-pi],[13/2,3]]</code>
+            </li>
+          </ul>
+          <li>
+            If the matrix has infinitely many factorizations, the elements that can be any
+            complex number will be shown as \(c_1,c_2,...,c_n\), where <span class='texhtml'><i>n</i></span>
+            is the total number of such elements.
+          </li>
+          <li>
+            If the matrix has no possible factorization, then an approximation will be made. Elements
+            of the inputted matrix that prevent the factorization from materializing will be increased
+            by \(\frac{1}{100000000}\), and factorization of this modified matrix will be shown.
+          </li>
+        </ul>
+      </header>
+      <table class='input'>
+        <tr>
+          <td><input type="text" id="matrix" name="A"></td>
+          <td><input type="button" value="Factorize" onclick="LUNoPivot(document.getElementById('matrix').value)"></td>
+        </tr>
+      </table>
+      
+      <p id="note"></p>
+      <p id="solution"></p>
+      <p id="A"></p>
+      <p id="L"></p>
+      <p id="U"></p>
+      <p id="plaintext"></p>
+    </article>
+  </body>
+  <script>
+    var epsilon = '1e-8';
+
+    function LUNoPivot(matrixString) {
+      try {
+        nerdamer.setVar('A', 'matrix(' + matrixString.slice(1, -1) + ')');
+      } catch (e) {
+        alert('Improper format, see usage notes.');
+        return;
+      }
+      document.getElementById('note').textContent = '';
+      var n = parseInt(nerdamer('size(' + nerdamer('matgetrow(A, 0)').toString().slice(7, -1) + ')').toString());
+      nerdamer.setVar('n', n);
+      nerdamer.setVar('L', 'imatrix(n)');
+      var anyNumberCount = 0;
+      var UArray = nerdamer('imatrix(n)').toString().replaceAll('1', '0').slice(7, -1);
+      nerdamer.setVar('U', 'matrix(' + UArray + ')');
+      var AFirstRow = 'matsetrow(U, 0, ' + nerdamer('matgetrow(A, 0)').toString().slice(7, -1) + ')';
+      nerdamer.setVar('U', AFirstRow); // 1st row of U is 1st row of A
+      for (var j = 0; j < n; j++) {
+        for (var i = 0; i < n; i++) {
+          nerdamer.setVar('num', 'matget(A, ' + i + ', ' + j + ')');
+          if (i > j) {
+            // solve for unknown in L
+            for (var c = 0; c < j; c++) {
+              let LFactor = 'matget(L, ' + i + ', ' + c + ')';
+              let UFactor = 'matget(U, ' + c + ', ' + j + ')';
+              nerdamer.setVar('num', 'num-' + LFactor + '*' + UFactor);
+            }
+            let UDivisor = 'matget(U, ' + j + ', ' + j + ')';
+            try {
+              nerdamer.setVar('num', 'num/' + UDivisor);
+            } catch (e) {
+              if (e.name === "ParseError") {
+                if (nerdamer('num').eq(0)) {
+                  // L[i][j] can be any number
+                  anyNumberCount += 1;
+                  nerdamer.setVar('num', 'c_' + anyNumberCount);
+                } else {
+                  // no factorization possible
+                  var originalA = nerdamer('A').toTeX().replaceAll('v', 'b');
+                  nerdamer.setVar('A', "matset(A, " + j + ', ' + j + ', ' + nerdamer('matget(A, ' + j + ', ' + j + ') + ' + epsilon).toString() + ')');
+                  LUNoPivot('[' + nerdamer('A').toString().slice(7, -1) + ']');
+                  document.getElementById('note').textContent = 'No LU factorization possible—approximation of \\(' + originalA + '\\) provided instead.';
+                  MathJax.typeset();
+                  return;
+                }
+              } else {
+                throw e;
+              }
+            }
+            nerdamer.setVar('L', 'matset(L, ' + i + ', ' + j + ', num)');
+          } else if (i <= j) {
+            // solve for unknown in U
+            for (var c = 0; c < i; c++) {
+              let LFactor = 'matget(L, ' + i + ', ' + c + ')';
+              let UFactor = 'matget(U, ' + c + ', ' + j + ')';
+              nerdamer.setVar('num', 'num-' + LFactor + '*' + UFactor);
+            }
+            nerdamer.setVar('U', 'matset(U, ' + i + ', ' + j + ', num)');
+          }
+        }
+      }
+      var AString = nerdamer('A').toTeX().replaceAll('v', 'b');
+      var LString = nerdamer('L').toTeX().replaceAll('v', 'b');
+      var UString = nerdamer('U').toTeX().replaceAll('v', 'b');
+      var solutionString = '$$' + AString + '=' + LString + UString;
+      if (anyNumberCount > 0) {
+        solutionString += '\\quad c_{n} \\in \\mathbb{C}';
+        LString += '\\quad c_{n} \\in \\mathbb{C}';
+        UString += '\\quad c_{n} \\in \\mathbb{C}';
+      }
+      document.getElementById('solution').textContent = solutionString += '$$';
+      document.getElementById('A').textContent = '$$A=' + AString + '$$';
+      document.getElementById('L').textContent = '$$L=' + LString + '$$';
+      document.getElementById('U').textContent = '$$U=' + UString + '$$';
+      MathJax.typeset();
+      document.getElementById('plaintext').textContent = 'Plaintext:\r\n\r\n[' + nerdamer('A').toString().slice(7, -1) + ']\r\n\r\n[' + nerdamer('L').toString().slice(7, -1) + ']\r\n\r\n[' + nerdamer('U').toString().slice(7, -1) + ']';
+    }
+    document.addEventListener('keyup', function(event) {
+      if (event.keyCode === 13) {
+        event.preventDefault();
+        LUNoPivot(document.getElementById('matrix').value);
+      }
+    });
+  </script>
+</html>

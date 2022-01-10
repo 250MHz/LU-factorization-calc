@@ -55,7 +55,6 @@
           <td><input type="button" value="Factorize" onclick="LUNoPivot(document.getElementById('matrix').value)"></td>
         </tr>
       </table>
-      
       <p id="note"></p>
       <p id="solution"></p>
       <p id="A"></p>
@@ -66,12 +65,15 @@
   </body>
   <script>
     var epsilon = '1e-8';
-
     function LUNoPivot(matrixString) {
       try {
         nerdamer.setVar('A', 'matrix(' + matrixString.slice(1, -1) + ')');
       } catch (e) {
-        alert('Improper format, see usage notes.');
+        document.getElementById('note').textContent = 'Improper format, see usage notes.';
+        return;
+      }
+      if (nerdamer('size(A)').symbol[0].multiplier.num.value !== nerdamer('size(A)').symbol[1].multiplier.num.value) {
+        document.getElementById('note').textContent = 'Improper format, must be a square matrix. See usage notes.';
         return;
       }
       document.getElementById('note').textContent = '';

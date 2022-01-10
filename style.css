@@ -23,6 +23,10 @@ body {
   font-family: sans-serif;
 }
 
+code {
+  white-space: pre;
+}
+
 p.description {
   text-align: center;
 }

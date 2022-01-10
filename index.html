@@ -39,9 +39,14 @@
           </ul>
           <li>
             If the matrix has infinitely many factorizations, the elements that can be any
-            complex number will be shown as \(c_1,c_2,...,c_n\), where <span class='texhtml'><i>n</i></span>
+            complex number will be shown as \(z_1,z_2,...,z_n\), where <span class='texhtml'><i>n</i></span>
             is the total number of such elements.
           </li>
+          <ul>
+            <li>
+              For this reason, having <code>z_</code> in the input is not allowed.
+            </li>
+          </ul>
           <li>
             If the matrix has no possible factorization, then an approximation will be made. Elements
             of the inputted matrix that prevent the factorization from materializing will be increased
@@ -76,6 +81,10 @@
         document.getElementById('note').textContent = 'Improper format, must be a square matrix. See usage notes.';
         return;
       }
+      if (matrixString.includes('z_')) {
+        document.getElementById('note').innerText = 'Improper format, cannot have "z_" in the input. See usage notes.'; 
+        return;
+      }
       document.getElementById('note').textContent = '';
       var n = parseInt(nerdamer('size(' + nerdamer('matgetrow(A, 0)').toString().slice(7, -1) + ')').toString());
       nerdamer.setVar('n', n);
@@ -103,7 +112,7 @@
                 if (nerdamer('num').eq(0)) {
                   // L[i][j] can be any number
                   anyNumberCount += 1;
-                  nerdamer.setVar('num', 'c_' + anyNumberCount);
+                  nerdamer.setVar('num', 'z_' + anyNumberCount);
                 } else {
                   // no factorization possible
                   var originalA = nerdamer('A').toTeX().replaceAll('v', 'b');
@@ -134,9 +143,11 @@
       var UString = nerdamer('U').toTeX().replaceAll('v', 'b');
       var solutionString = '$$' + AString + '=' + LString + UString;
       if (anyNumberCount > 0) {
-        solutionString += '\\quad c_{n} \\in \\mathbb{C}';
-        LString += '\\quad c_{n} \\in \\mathbb{C}';
-        UString += '\\quad c_{n} \\in \\mathbb{C}';
+        solutionString += '\\quad z_{n} \\in \\mathbb{C}';
+        LString += '\\quad z_{n} \\in \\mathbb{C}';
+        if (UString.includes('z')) {
+          UString += '\\quad z_{n} \\in \\mathbb{C}';
+        }
       }
       document.getElementById('solution').textContent = solutionString += '$$';
       document.getElementById('A').textContent = '$$A=' + AString + '$$';

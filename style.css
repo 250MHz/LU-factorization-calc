@@ -10,8 +10,6 @@
 article {
   max-width: 780px;
   width: 100%;
-  /* justify-content: center; */
-  /* position: relative; */
   margin: 30px auto;
 }
 
@@ -25,6 +23,10 @@ body {
 
 code {
   white-space: pre;
+}
+
+li {
+  margin-bottom: 0.25em;
 }
 
 p.description {

@@ -52,3 +52,7 @@ span.texhtml {
 table.input * {
   width: 100%;
 }
+
+input::placeholder {
+  font-style: italic;
+}

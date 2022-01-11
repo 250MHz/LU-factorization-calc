@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html color-mode="light">
   <head>
     <title>LU Factorization Calculator</title>
     <link rel="stylesheet" href="style.css">
@@ -13,12 +13,17 @@
         // https://docs.mathjax.org/en/v3.0-latest/options/output/index.html#options-common-to-all-output-processors
         chtml: { displayAlign: 'left' }
       }
+      if (localStorage.getItem('color-mode') === 'dark' || (window.matchMedia('(prefers-color-scheme: dark)').matches 
+          && !localStorage.getItem('color-mode'))) {
+        // if true, set the site to Dark Mode
+        document.documentElement.setAttribute('color-mode', 'dark')
+      }
     </script>
   </head>
   <body>
     <article>
+      <h1>LU Factorization Calculator</h1>
       <header>
-        <h1>LU Factorization Calculator</h1>
         <p class='description'>Calculator for performing LU factorization without pivoting of a square matrix.</p>
         <p>The definition for LU factorization (aka LU decomposition) used here is</p>
         <p class='definition'>
@@ -52,6 +57,15 @@
             of the inputted matrix that prevent the factorization from materializing will be increased
             by \(\frac{1}{100000000}\), and factorization of this modified matrix will be shown.
           </li>
+          <li>
+            Concerning when a matrix has a single, infinitely many, or no factorization, see
+          </li>
+          <ul>
+            <li class="citation">
+              Ly Jacky Nhiayi and Tuyetdong Phan-Yamada, <i>Examining Possible LU Decompositions</i>, North
+              American GeoGebra Journal. <b>9</b> (2021), no. 1, 1–7.
+            </li>
+          </ul>
         </ul>
       </header>
       <table class='input'>
@@ -66,6 +80,10 @@
       <p id="L"></p>
       <p id="U"></p>
       <p id="plaintext"></p>
+      <!--- Light mode button --->
+      <button class="color-mode__btn light--hidden" aria-label="Toggle light mode">Toggle Light Mode<use></use></button>
+      <!--- Dark mode button --->
+      <button class="color-mode__btn dark--hidden" aria-label="Toggle dark mode">Toggle Dark Mode<use></use></button>
     </article>
   </body>
   <script>
@@ -163,5 +181,27 @@
         LUNoPivot(document.getElementById('matrix').value);
       }
     });
+    if (window.CSS && CSS.supports("color", "var(--primary)")) {
+      var toggleColorMode = function toggleColorMode(e) {
+        // Switch to Light Mode
+        if (e.currentTarget.classList.contains("light--hidden")) {
+          document.documentElement.setAttribute("color-mode", "light"); // Sets the custom html attribute
+          localStorage.setItem("color-mode", "light");  // Sets the user's preference in local storage
+          return;
+        }
+        document.documentElement.setAttribute("color-mode", "dark"); // Switch to Dark Mode sets the custom html attribute 
+        localStorage.setItem("color-mode", "dark"); // Sets the user's preference in local storage
+      }; 
+      // Get the buttons in the DOM
+      var toggleColorButtons = document.querySelectorAll(".color-mode__btn"); 
+      // Set up event listeners
+      toggleColorButtons.forEach(function(btn) {
+        btn.addEventListener("click", toggleColorMode);
+      });
+    } else {
+      // If the feature isn't supported, then we hide the toggle buttons
+      var btnContainer = document.querySelector(".color-mode__header");
+      btnContainer.style.display = "none";
+    }
   </script>
 </html>

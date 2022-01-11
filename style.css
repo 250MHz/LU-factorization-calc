@@ -1,16 +1,47 @@
+:root[color-mode="light"] {
+  --surface1: rgb(255, 255, 255);
+  --element1: rgb(48, 48, 48);
+  --error: rgb(255, 0, 0);
+}
+
+:root[color-mode="dark"] {
+  --surface1: rgb(44, 44, 44);
+  --element1: rgb(238, 238, 238);
+  --error: rgb(228, 89, 89);;
+}
+
+/* Any element with the class "light--hidden" will be hidden when the site is set to Light Mode */
+:root[color-mode="light"] .light--hidden {
+  display: none;
+}
+
+/* Any element with the class "dark--hidden" will be hidden when the site is set to Dark Mode */
+:root[color-mode="dark"] .dark--hidden {
+  display: none;
+}
+
+.color-mode__btn {
+  position: relative;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 10px 0 0 0;
+}
+
 #plaintext {
   font-family: monospace;
   white-space: pre-line;
 }
 
 #note {
-  color: rgb(255, 0, 0);
+  color: var(--error);
 }
 
 article {
   max-width: 780px;
   width: 100%;
   margin: 30px auto;
+  color: var(--element1);
+  background-color: var(--surface1);
 }
 
 h1 {
@@ -19,6 +50,7 @@ h1 {
 
 body {
   font-family: sans-serif;
+  background-color: var(--surface1);
 }
 
 code {
@@ -56,3 +88,4 @@ table.input * {
 input::placeholder {
   font-style: italic;
 }
+

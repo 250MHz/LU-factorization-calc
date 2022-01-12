@@ -161,10 +161,10 @@
       var UString = nerdamer('U').toTeX().replaceAll('v', 'b');
       var solutionString = '$$' + AString + '=' + LString + UString;
       if (anyNumberCount > 0) {
-        solutionString += '\\quad z_{n} \\in \\mathbb{R}';
-        LString += '\\quad z_{n} \\in \\mathbb{R}';
+        solutionString += '\\quad z_{n} \\in \\mathbb{C}';
+        LString += '\\quad z_{n} \\in \\mathbb{C}';
         if (UString.includes('z_')) {
-          UString += '\\quad z_{n} \\in \\mathbb{R}';
+          UString += '\\quad z_{n} \\in \\mathbb{C}';
         }
       }
       document.getElementById('solution').textContent = solutionString += '$$';

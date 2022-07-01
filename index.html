@@ -24,11 +24,11 @@
     <article>
       <h1>LU Factorization Calculator</h1>
       <header>
-        <p class='description'>Calculator for performing LU factorization without pivoting of a square matrix.</p>
+        <p class='description'>Calculator for performing LU factorization without pivoting of a matrix.</p>
         <p>The definition for LU factorization (aka LU decomposition) used here is</p>
         <p class='definition'>
           <i>
-            Let <span class="texhtml">A</span> be a square matrix. A presentation <span class="texhtml">A = LU</span>, 
+            Let <span class="texhtml">A</span> be a matrix. A presentation <span class="texhtml">A = LU</span>, 
             in which <span class="texhtml">L</span> is unit lower triangular and <span class="texhtml">U</span> is upper 
             triangular, is called an <span class="texhtml">LU</span> factorization of <span class="texhtml">A</span>. 
           </i>
@@ -95,29 +95,34 @@
         document.getElementById('note').textContent = 'Improper format, see usage notes.';
         return;
       }
-      if (nerdamer('size(A)').symbol[0].multiplier.num.value !== nerdamer('size(A)').symbol[1].multiplier.num.value) {
-        document.getElementById('note').textContent = 'Improper format, must be a square matrix. See usage notes.';
-        return;
-      }
       if (matrixString.includes('z_')) {
         document.getElementById('note').textContent = 'Improper format, cannot have "z_" in the input. See usage notes.'; 
         return;
       }
       document.getElementById('note').textContent = '';
-      var n = parseInt(nerdamer('size(' + nerdamer('matgetrow(A, 0)').toString().slice(7, -1) + ')').toString());
+      // m is number of rows
+      var m = nerdamer('size(A)').symbol[1].multiplier.num.value;
+      // n is number of columns
+      var n = nerdamer('size(A)').symbol[0].multiplier.num.value;
+      nerdamer.setVar('m', m);
       nerdamer.setVar('n', n);
-      nerdamer.setVar('L', 'imatrix(n)');
+      nerdamer.setVar('L', 'imatrix(m)');
       var anyNumberCount = 0;
-      var UArray = nerdamer('imatrix(n)').toString().replaceAll('1', '0').slice(7, -1);
-      nerdamer.setVar('U', 'matrix(' + UArray + ')');
+      // make UArray a copy of A but with all values as 0
+      nerdamer.setVar('U', nerdamer('A').toString());
+      for (let i = 0; i < m; i++) {
+        for (let j = 0; j < n; j++) {
+          nerdamer.setVar('U', 'matset(U, ' + i + ', ' + j + ', 0)');
+        }
+      }
       var AFirstRow = 'matsetrow(U, 0, ' + nerdamer('matgetrow(A, 0)').toString().slice(7, -1) + ')';
       nerdamer.setVar('U', AFirstRow); // 1st row of U is 1st row of A
-      for (var j = 0; j < n; j++) {
-        for (var i = 0; i < n; i++) {
+      for (let j = 0; j < n; j++) {
+        for (let i = 0; i < m; i++) {
           nerdamer.setVar('num', 'matget(A, ' + i + ', ' + j + ')');
           if (i > j) {
             // solve for unknown in L
-            for (var c = 0; c < j; c++) {
+            for (let c = 0; c < j; c++) {
               let LFactor = 'matget(L, ' + i + ', ' + c + ')';
               let UFactor = 'matget(U, ' + c + ', ' + j + ')';
               nerdamer.setVar('num', 'num-' + LFactor + '*' + UFactor);
@@ -153,6 +158,17 @@
               nerdamer.setVar('num', 'num-' + LFactor + '*' + UFactor);
             }
             nerdamer.setVar('U', 'matset(U, ' + i + ', ' + j + ', num)');
+          }
+        }
+      }
+      // for non-square matrices where number of rows is greater than number of columns
+      if (m > n + 1) {
+        // the columns that need to be filled start at column L[x][n]
+        // the row number starts at j + 1
+        for (let j = n; j < m; j++) {
+          for (let i = j + 1; i < m; i++) {
+            anyNumberCount++;
+            nerdamer.setVar('L', 'matset(L, ' + i + ', ' + j + ', ' + 'z_' + anyNumberCount + ')');
           }
         }
       }

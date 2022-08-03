@@ -110,17 +110,13 @@
             try {
               console.log('Simplifying L ' + i + ' ' + j);
               console.time('Simplifying L ' + i + ' ' + j);
-              // replacing all z_ with '' to check if 0 is bad workaround b/c doesn't always work
-              // e.g. (2 - z_2)/(-z_1 + 13/2) will evaluate to 0 when it shouldn't
-              // but simplify() is just way too slow/inaccurate, so only even bother with simplify()
-              // if the first way works
-              if (nerdamer(nerdamer('num').toString().replaceAll('z_', '')).eq(0) && nerdamer('simplify(num)').eq(0)) {
+              if (simplifyNumToZero()) {
                 nerdamer.setVar('num', '0');
               }
               console.timeEnd('Simplifying L ' + i + ' ' + j);
               nerdamer.setVar('num', 'num/' + UDivisor);
             } catch (e) {
-              if (e.name === "ParseError") {
+              if (e.name === 'ParseError') {
                 if (nerdamer('num').eq(0)) {
                   // L[i][j] can be any number
                   nerdamer.setVar('num', 'z_' + ++anyNumberCount);
@@ -159,7 +155,7 @@
             }
             console.log('Simplifying U ' + i + ' ' + j);
             console.time('Simplifying U ' + i + ' ' + j);
-            if (nerdamer(nerdamer('num').toString().replaceAll('z_', '')).eq(0) && nerdamer('simplify(num)').eq(0)) {
+            if (simplifyNumToZero()) {
               nerdamer.setVar('num', '0');
             }
             console.timeEnd('Simplifying U ' + i + ' ' + j);
@@ -178,6 +174,57 @@
           }
         }
       }
+    }
+    function simplifyNumToZero() {
+      // this work around can cause an error, e.g. -(-a*z_1+a)^(-1)*(-a*z_2+g)*(-b*z_1+b)-b*z_2+h
+      // if you replace z_ with '' you get -(-a*1+a)^(-1)*(-a*z_2+g)*(-b*z_1+b)-b*z_2+h
+      // (a*1+a)^(-1) = (0)^(-1) is a divide by 0 error, but this does properly
+      // simplify to (-b*g+a*h)*a^(-1)
+      try {
+        if (!nerdamer(nerdamer('num').toString().replaceAll('z_', '')).eq(0)) {
+          return false;
+        }
+      } catch (e) {
+        if (e.name === 'ParseError') {
+          // work around cause a divide by 0 error
+          // pass and let it try simplify()
+        } else {
+          console.log('Error in using work around to simplify num');
+          console.log(`num = ${nerdamer('num').toString()}`);
+          console.log(e);
+          return false;
+        }
+      }
+      // another work around
+      try {
+        if (!nerdamer(nerdamer('num').toString().replaceAll('z_', '0*')).eq(0)) {
+          return false;
+        }
+      } catch (e) {
+        if (e.name === 'ParseError') {
+          // work around cause a divide by 0 error
+          // pass and let it try simplify()
+        } else {
+          console.log('Error in using work around to simplify num');
+          console.log(`num = ${nerdamer('num').toString()}`);
+          console.log(e);
+          return false;
+        }
+      }
+      // replacing all z_ with '' to check if 0 is bad workaround b/c doesn't always work
+      // e.g. (2 - z_2)/(-z_1 + 13/2) will evaluate to 0 when it shouldn't
+      // but simplify() is just way too slow/inaccurate, so only even bother with simplify()
+      // if the first way works
+      try {
+        console.log(nerdamer('num').toString());
+        return nerdamer('simplify(num)').eq(0);
+      } catch (e) {
+        console.log('Error in doing simplify(num');
+        console.log(`num = ${nerdamer('num').toString()}`);
+        console.log(e);
+        return false;
+      }
+      return false;
     }
     function additionalSolutionsPresent(m, n, initiald = 1) {
       // if m <= n, loop through U[d][d] where d in [1, m-1]

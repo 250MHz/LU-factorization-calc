@@ -5,7 +5,6 @@
     <link rel="stylesheet" href="style.css">
     <meta charset="utf-8">
     <meta name="description" content="Performs an LU factorization without pivoting of a matrix.">
-    <script src="all.min.js"></script>
     <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script>
@@ -41,34 +40,35 @@
               E.g., to find the factorization of \(\begin{bmatrix}6 & 12 \cr
               18 & 20 \end{bmatrix}\) input <code>[[6,12],[18,20]]</code>
             </li>
-            <li>
-              Input cannot contain <code>A</code>, <code>L</code>, <code>U</code>, <code>z_</code>,
-              or <code>num</code>, as these are variable names.
-            </li>
           </ul>
           <li>
+            The "Details" disclosure widget (displayed below the results) shows the matrices
+            used to create the factorization. That is, \(A = LU = [L_0L_*^{-1}][L_*\mathscr{U}]\).
+          </li>
+          <li>
             If the matrix has infinitely many factorizations, the elements that can be any complex
-            number will be shown as \(z_1,z_2,...,z_n\), where <span class='texhtml'><i>n</i></span>
+            number will be shown as \(\alpha_1,\alpha_2,...,\alpha_n\), where <span class='texhtml'><i>n</i></span>
             is the total number of such elements.
           </li>
-          <ul>
-            <li>
-              If there are additional factorizations, a button will appear which, when clicked, will try to find them.
-              <ul>
-                <li>This is very buggy, and the results may not even properly multiply to <span class="texhtml"><i>A</i></span></li>
-              </ul>
-            </li>
-          </ul>
           <li>
             If the matrix has no possible factorization, then an approximation will be made. Elements
             of the inputted matrix that prevent the factorization from materializing will be increased
-            by \(\frac{1}{100000000}\), and factorization of this modified matrix will be shown.
+            by \(\varepsilon\), and factorization of this modified matrix will be shown.
           </li>
+          <li>
+            This calculator uses the approach to obtain all LU factorizations of a matrix described in
+          </li>
+          <ul>
+            <li>
+              Froilán M. Dopico, Charles R. Johnson, and Juan M. Molera, <i>Multiple LU factorizations of a singular matrix</i>,
+              Linear Algebra and its Applications. <b>419</b> (2006), no. 1, 24–36.
+            </li>
+          </ul>
           <li>
             Concerning when a matrix has a single, infinitely many, or no factorization, see
           </li>
           <ul>
-            <li class="citation">
+            <li>
               Ly Jacky Nhiayi and Tuyetdong Phan-Yamada, <i>Examining Possible LU Decompositions</i>, North
               American GeoGebra Journal. <b>9</b> (2021), no. 1, 1–7.
             </li>
@@ -78,11 +78,14 @@
       <table class='input'>
         <tr>
           <td><input type="text" id="matrix" name="A" placeholder="Enter your matrix here"></td>
-          <td><input type="button" value="Factorize" onclick="LUNoPivot(document.getElementById('matrix').value)"></td>
+          <td><input type="button" value="Factorize" onclick="useWorker(document.getElementById('matrix').value)"></td>
         </tr>
       </table>
       <div id="note"></div>
       <div id="solution"></div>
+      <details id="details" hidden>
+        <summary>Details</summary>
+      </details>
       <!--- Light mode button --->
       <button class="color-mode__btn light--hidden" aria-label="Toggle light mode">Toggle Light Mode<use></use></button>
       <!--- Dark mode button --->
@@ -90,384 +93,90 @@
     </article>
   </body>
   <script>
-    var epsilon = '1e-8';
-    // the naming of z_n for additional solutions is really wacky
-    var anyNumberCount = 0;
-    var note = document.getElementById('note');
-    var solution = document.getElementById('solution');
-    function croutDecompose(m, n, initialJ = 0, ignoreD = -1, initialI = 0) {
-      for (let j = initialJ; j < n; j++) {
-        for (let i = initialI; i < m; i++) {
-          nerdamer.setVar('num', 'matget(A, ' + i + ', ' + j + ')');
-          if (i > j) {
-            // solve for unknown in L
-            for (let c = 0; c < j; c++) {
-              let LFactor = 'matget(L, ' + i + ', ' + c + ')';
-              let UFactor = 'matget(U, ' + c + ', ' + j + ')';
-              nerdamer.setVar('num', 'num-' + LFactor + '*' + UFactor);
-            }
-            let UDivisor = 'matget(U, ' + j + ', ' + j + ')';
-            try {
-              console.log('Simplifying L ' + i + ' ' + j);
-              console.time('Simplifying L ' + i + ' ' + j);
-              if (simplifyNumToZero()) {
-                nerdamer.setVar('num', '0');
-              }
-              console.timeEnd('Simplifying L ' + i + ' ' + j);
-              nerdamer.setVar('num', 'num/' + UDivisor);
-            } catch (e) {
-              if (e.name === 'ParseError') {
-                if (nerdamer('num').eq(0)) {
-                  // L[i][j] can be any number
-                  nerdamer.setVar('num', 'z_' + ++anyNumberCount);
-                } else {
-                  // no factorization possible
-                  var originalA = nerdamer('A').toTeX().replaceAll('v', 'b');
-                  nerdamer.setVar('A', "matset(A, " + j + ', ' + j + ', ' + nerdamer('matget(A, ' + j + ', ' + j + ') + ' + epsilon).toString() + ')');
-                  LUNoPivot('[' + nerdamer('A').toString().slice(7, -1) + ']');
-                  note.innerHTML += '<p>No LU factorization possible—approximation of \\(' + originalA + '\\) provided instead.';
-                  MathJax.typeset();
-                  return -1;
-                }
-              } else {
-                throw e;
-              }
-            }
-            nerdamer.setVar('L', 'matset(L, ' + i + ', ' + j + ', num)');
-          } else if (i <= j) {
-            // solve for unknown in U
-            if (ignoreD === i && ignoreD === j) {
-              nerdamer.setVar('U', 'matset(U, ' + i + ', ' + j + ', 0)');
-              // work around b/c of simplification issues
-              // set the remaining values in column j in L to z_n
-              // dangerous b/c i'm not sure if the remaining values will necessarily be z_n
-              for (let r = i + 1; r < m; r++) {
-                nerdamer.setVar('num', 'z_' + ++anyNumberCount);
-                nerdamer.setVar('L', 'matset(L, ' + r + ', ' + j + ', num)');
-              }
-              i = m;
-              continue;
-            }
-            for (var c = 0; c < i; c++) {
-              let LFactor = 'matget(L, ' + i + ', ' + c + ')';
-              let UFactor = 'matget(U, ' + c + ', ' + j + ')';
-              nerdamer.setVar('num', 'num-' + LFactor + '*' + UFactor);
-            }
-            console.log('Simplifying U ' + i + ' ' + j);
-            console.time('Simplifying U ' + i + ' ' + j);
-            if (simplifyNumToZero()) {
-              nerdamer.setVar('num', '0');
-            }
-            console.timeEnd('Simplifying U ' + i + ' ' + j);
-            nerdamer.setVar('U', 'matset(U, ' + i + ', ' + j + ', num)');
-          }
-        }
-      }
-      // for non-square matrices where number of rows is greater than number of columns
-      if (m > n + 1) {
-        // the columns that need to be filled start at column L[x][n]
-        // the row number starts at j + 1
-        for (let j = n; j < m; j++) {
-          for (let i = j + 1; i < m; i++) {
-            anyNumberCount++;
-            nerdamer.setVar('L', 'matset(L, ' + i + ', ' + j + ', ' + 'z_' + anyNumberCount + ')');
-          }
-        }
-      }
+    var workerRunning = false;
+    var previousInput = '';
+    if (window.Worker) {
+      var myWorker = new Worker("worker.js");
+    } else {
+      console.log("Your browser doesn't support web workers.");
     }
-    function simplifyNumToZero() {
-      // this work around can cause an error, e.g. -(-a*z_1+a)^(-1)*(-a*z_2+g)*(-b*z_1+b)-b*z_2+h
-      // if you replace z_ with '' you get -(-a*1+a)^(-1)*(-a*z_2+g)*(-b*z_1+b)-b*z_2+h
-      // (a*1+a)^(-1) = (0)^(-1) is a divide by 0 error, but this does properly
-      // simplify to (-b*g+a*h)*a^(-1)
-      try {
-        if (!nerdamer(nerdamer('num').toString().replaceAll('z_', '')).eq(0)) {
-          return false;
-        }
-      } catch (e) {
-        if (e.name === 'ParseError') {
-          // work around cause a divide by 0 error
-          // pass and let it try simplify()
-        } else {
-          console.log('Error in using work around to simplify num');
-          console.log(`num = ${nerdamer('num').toString()}`);
-          console.log(e);
-          return false;
-        }
-      }
-      // another work around
-      try {
-        if (!nerdamer(nerdamer('num').toString().replaceAll('z_', '0*')).eq(0)) {
-          return false;
-        }
-      } catch (e) {
-        if (e.name === 'ParseError') {
-          // work around cause a divide by 0 error
-          // pass and let it try simplify()
-        } else {
-          console.log('Error in using work around to simplify num');
-          console.log(`num = ${nerdamer('num').toString()}`);
-          console.log(e);
-          return false;
-        }
-      }
-      // replacing all z_ with '' to check if 0 is bad workaround b/c doesn't always work
-      // e.g. (2 - z_2)/(-z_1 + 13/2) will evaluate to 0 when it shouldn't
-      // but simplify() is just way too slow/inaccurate, so only even bother with simplify()
-      // if the first way works
-      try {
-        console.log(nerdamer('num').toString());
-        return nerdamer('simplify(num)').eq(0);
-      } catch (e) {
-        console.log('Error in doing simplify(num');
-        console.log(`num = ${nerdamer('num').toString()}`);
-        console.log(e);
-        return false;
-      }
-      return false;
+    function cleanElements() {
+      document.getElementById('note').textContent = '';
+      document.getElementById('solution').textContent = '';
+      document.getElementById('details').textContent = '';
+      document.getElementById('details').hidden = true;
     }
-    function additionalSolutionsPresent(m, n, initiald = 1) {
-      // if m <= n, loop through U[d][d] where d in [1, m-1]
-      if (m <= n) {
-        var stopIndex = m - 1;
-      // if m > n, loop through U[d][d] where d in [1, n]
-      } else if (m > n) {
-        var stopIndex = n;
-      }
-      // loop through diagonal elements of U
-      for (let d = initiald; d < stopIndex; d++) {
-        if (nerdamer('matget(U, ' + d + ', ' + d + ')').toString().includes('z_')) {
-          return true;
-        }
-      }
-      return false;
+    function displayNote(s) {
+      document.getElementById('note').appendChild(document.createElement('p')).textContent = s;
     }
-    function findAdditionalLU(m, n, initiald = 1) {
-      // if m <= n, loop through U[d][d] where d in [1, m-1]
-      if (m <= n) {
-        var stopIndex = m - 1;
-      // if m > n, loop through U[d][d] where d in [1, n]
-      } else if (m > n) {
-        var stopIndex = n;
+    function displayResults(results) {
+      if (results.OriginalAString) {
+        displayNote(`No LU factorization possible—approximation of \\(${results.OriginalAString}\\) provided instead.`);
       }
-      // loop through diagonal elements of U
-      for (let d = initiald; d < stopIndex; d++) {
-        if (nerdamer('matget(U, ' + d + ', ' + d + ')').toString().includes('z_')) {
-          let previousLString = nerdamer('L').toString();
-          let previousUString = nerdamer('U').toString();
-          // solve for the simplest z_n in the element
-          for (var x = 0; x < d; x++) {
-            if (!nerdamer('matget(U, ' + x + ', ' + d + ')').eq(0) && /^z_\d+$/.test(nerdamer('matget(L, ' + d + ', ' + x + ')').toString())) {
-              // solve for simplest from U[d][d] = 0
-              // .solveFor() is messy/slow/inaccurate, don't need it if the z_n we're looking for only appears once
-              let s = nerdamer('matget(U, ' + d + ', ' + d + ')').toString();
-              if (s.indexOf(nerdamer('matget(L, ' + d + ', ' + x + ')').toString()) === s.lastIndexOf(nerdamer('matget(L, ' + d + ', ' + x + ')').toString())) {
-                nerdamer.setVar('num', 'matget(A, ' + d + ', ' + d + ')');
-                for (let k = 0; k < d; k++) {
-                  if (k == x) {
-                    continue;
-                  }
-                  let LFactor = 'matget(L, ' + d + ', ' + k + ')';
-                  let UFactor = 'matget(U, ' + k + ', ' + d + ')';
-                  nerdamer.setVar('num', 'num-' + LFactor + '*' + UFactor);
-                }
-                let UDivisor = 'matget(U, ' + x + ', ' + d + ')';
-                try {
-                  nerdamer.setVar('num', 'num/' + UDivisor);
-                } catch (e) {
-                  // not sure what to do here
-                  console.log(e);
-                  console.log('Error in solving for the simplest z_n in U[' + d + '][' + d + '] = 0');
-                  console.log('U[' + d + ', ' + d + '] = ' + nerdamer('matget(U, ' + d + ', ' + d + ')').toString());
-                  console.log('L[' + d + ', ' + x + '] = ' + nerdamer('matget(L, ' + d + ', ' + x + ')').toString());
-                  nerdamer.setVar('L', previousLString);
-                  nerdamer.setVar('U', previousUString);
-                  return;
-                }
-              } else{
-                try {
-                  console.log('Solving for the simplest z_n in U[' + d + '][' + d + '] = 0');
-                  console.log('U[' + d + ', ' + d + '] = ' + nerdamer('matget(U, ' + d + ', ' + d + ')').toString());
-                  console.log('L[' + d + ', ' + x + '] = ' + nerdamer('matget(L, ' + d + ', ' + x + ')').toString());
-                  console.time('Solving for the simplest z_n in U[' + d + '][' + d + '] = 0');
-                  let numSolve = nerdamer('matget(U, ' + d + ', ' + d + ')').solveFor(nerdamer('matget(L, ' + d + ', ' + x + ')').toString());
-                  if (numSolve.length === 0) {
-                    nerdamer.setVar('num', '0');
-                    return; // no solution?
-                  } else {
-                    nerdamer.setVar('num', numSolve[0].toString());
-                    // TODO: if there are multiple solutions, i guess we want to loop through them
-                  }
-                  console.timeEnd('Solving for the simplest z_n in U[' + d + '][' + d + '] = 0');
-                  // Nerdamer doesn't properly recognise an equation is false, e.g.
-                  // -(-(-2*z_1+4)*(-z_1+5)^(-1)*(-z_2+8)-2*z_2+6)^(-1)*(-(-2*z_1+4)*(-z_1+5)^(-1)*(-z_3+10)-2*z_3+12)*(-(-3*z_1+6)*(-z_1+5)^(-1)*(-z_2+8)-3*z_2+9)-(-3*z_1+6)*(-z_1+5)^(-1)*(-z_3+10)-3*z_3+11
-                  // isn't equal to 0, so you can't solve it, but Nerdamer thinks there is a solution
-                  // here for z_3. Not sure how to get around this
-                } catch (e) {
-                  // not sure what to do here
-                  console.log(e);
-                  console.log('Error in solving for the simplest z_n in U[' + d + '][' + d + '] = 0');
-                  console.log('U[' + d + ', ' + d + '] = ' + nerdamer('matget(U, ' + d + ', ' + d + ')').toString());
-                  console.log('L[' + d + ', ' + x + '] = ' + nerdamer('matget(L, ' + d + ', ' + x + ')').toString());
-                  nerdamer.setVar('L', previousLString);
-                  nerdamer.setVar('U', previousUString);
-                  return;
-                }
-              }
-              nerdamer.setVar('L', 'matset(L, ' + d + ', ' + x + ', num)');
-              break;
-            }
-          }
-          // specify the remaining L[r][x]
-          for (let r = d + 1; r < m; r++) {
-            nerdamer.setVar('num', 'matget(A, ' + r + ', ' + d + ')');
-            for (let k = 0; k < d; k++) {
-              if (k == x) {
-                continue;
-              }
-              let LFactor = 'matget(L, ' + r + ', ' + k + ')';
-              let UFactor = 'matget(U, ' + k + ', ' + d + ')';
-              nerdamer.setVar('num', 'num-' + LFactor + '*' + UFactor);
-            }
-            let UDivisor = 'matget(U, ' + x + ', ' + d + ')';
-            try {
-              nerdamer.setVar('num', 'num/' + UDivisor);
-            } catch (e) {
-              // not sure what to do here or if this can even happen
-              console.log(e);
-              console.log('Error in dividing A[' + r + '][' + d + '] - L[' + r + '][k]*U[k][' + d + '] by U[' + x + '][' + d + '] to find L[' + r + '][' + x + ']');
-              console.log('U[' + x + '][' + d + '] = ' + UDivisor);
-              console.log('L[' + r + '][' + x + '] = ' + nerdamer('matget(L, ' + r + ', ' + x + ')').toString());
-              nerdamer.setVar('L', previousLString);
-              nerdamer.setVar('U', previousUString);
-              return;
-            }
-            // `num` is (A[r][d] - L[r][k]*U[k][d])/U[x][d] = L[r][x] where k = 1, ..., d and k!= x 
-            // so .solveFor() is looking at `num - L[r][x] = 0` and trying to solve for L[r][x]
-            // don't need to do .solveFor() if the z_n we're looking for isn't even in num
-            if (nerdamer('num').toString().indexOf(nerdamer('matget(L, ' + r + ', ' + x + ')').toString()) != -1) {
-              try {
-                console.log('Solving for simplest z_n from L[' + r + '][k]*U[k][' + d + '] = A[' + r + '][' + d + ']');
-                console.log('num - L[' + r + ', ' + x + '] = ' + nerdamer('num - matget(L, ' + r + ', ' + x + ')').toString());
-                console.log('L[' + r + ', ' + x + '] = ' + nerdamer('matget(L, ' + r + ', ' + x + ')').toString());
-                console.time('Solving for simplest z_n from L[' + r + '][k]*U[k][' + d + '] = A[' + r + '][' + d + ']');
-                let numSolve = nerdamer('num - matget(L, ' + r + ', ' + x + ')').solveFor(nerdamer('matget(L, ' + r + ', ' + x + ')').toString());
-                if (numSolve.length === 0) {
-                  nerdamer.setVar('num', '0');
-                } else {
-                  nerdamer.setVar('num', numSolve[0].toString());
-                  // TODO: if there are multiple solutions, i guess we want to loop through them
-                }
-                console.timeEnd('Solving for simplest z_n from L[' + r + '][k]*U[k][' + d + '] = A[' + r + '][' + d + ']');
-              } catch (e) {
-                // not sure what to do here
-                console.log(e);
-                console.log('Error in solving for the simplest z_n from L[' + r + '][k]*U[k][' + d + '] = A[' + r + '][' + d + ']')
-                console.log('num - L[' + r + ', ' + x + '] = ' + nerdamer('num - matget(L, ' + r + ', ' + x + ')').toString());
-                console.log('L[' + r + ', ' + x + '] = ' + nerdamer('matget(L, ' + r + ', ' + x + ')').toString());
-                // this seems to happen when the z_n gets cancelled out?
-                // e.g. (1/3)*(-3*z_1+10)*(-z_1+8)^(-1)*z_4-z_4 = 0
-                // add z_4 to both sides, then divide both sides by z_4, then it's gone
-                // e.g. -((-4/3)*z_1+20/3)*(-3*z_1+6)*(-z_1+5)^(-1)-(-((-5/3)*z_1+25/3)*(-3*z_1+6)*(-z_1+5)^(-1)-5*z_1+10)*z_5-4*z_1+1 = 0
-                // the problem here is (-((-5/3)*z_1+25/3)*(-3*z_1+6)*(-z_1+5)^(-1)-5*z_1+10) = 0, so can't solve for z_5
-                // it just becomes -7 = 0, which is false
-                nerdamer.setVar('L', previousLString);
-                nerdamer.setVar('U', previousUString);
-                return;
-              }
-            }
-            nerdamer.setVar('L', 'matset(L, ' + r + ', ' + x + ', num)');
-          }
-          fixAnyNumberCount(m, x);
-          // start Crout decompose at column x + 1, ignore U[d][d]
-          croutDecompose(m, n, x + 1, d);
-          displayResults();
-          // start at the next diagonal element b/c i'm assuming there's only one z_n to solve for in each diagonal
-          findAdditionalLU(m, n, d + 1);
-          // change L and U back to normal
-          nerdamer.setVar('L', previousLString);
-          nerdamer.setVar('U', previousUString);
-        }
-      }
-    }
-    function fixAnyNumberCount(m, stopColumn) {
-      let c = 0;
-      for (let j = 0; j <= stopColumn; j++) {
-        for (let i = j + 1; i < m; i++) {
-          // .includes() not regex b/c if there was say z_1 to z_6 and z_2 and z_3 were specified
-          // we don't want z_2 and z_3 to be shown; instead we want to see z_1, z_4, z_5, z_6
-          if (nerdamer('matget(L, ' + i + ', ' + j + ')').toString().includes('z_')) {
-            c++;
-          }
-        }
-      }
-      anyNumberCount = c;
-    }
-    function displayResults() {
-      let AString = nerdamer('A').toTeX().replaceAll('v', 'b');
-      let LString = nerdamer('L').toTeX().replaceAll('v', 'b');
-      let UString = nerdamer('U').toTeX().replaceAll('v', 'b');
-      let solutionString = '$$' + AString + '=' + LString + UString;
-      if (anyNumberCount > 0) {
-        solutionString += '\\quad z_{n} \\in \\mathbb{C}';
-        LString += '\\quad z_{n} \\in \\mathbb{C}';
-        if (UString.includes('z_')) {
-          UString += '\\quad z_{n} \\in \\mathbb{C}';
-        }
-      }
-      // clearly z_n cannot be any number, maybe use values from the for loops in findAdditionalLU()
-      // to show which values z_n cannot be?
-      solution.innerHTML += 
-        '<p>' + solutionString + '$$' +
-        '<p>' + '$$A=' + AString + '$$' +
-        '<p>' + '$$L=' + LString + '$$' +
-        '<p>' + '$$U=' + UString + '$$';
+      let fragment = document.createDocumentFragment();
+      fragment.appendChild(document.createElement('p')).textContent = `$$${results.AString} = ${results.LString}${results.UString}$$`;
+      fragment.appendChild(document.createElement('p')).textContent = `$$A = ${results.AString}$$`;
+      fragment.appendChild(document.createElement('p')).textContent = `$$L = ${results.LString}$$`; 
+      fragment.appendChild(document.createElement('p')).textContent = `$$U = ${results.UString}$$`; 
+      let plaintext = fragment.appendChild(document.createElement('p'));
+      plaintext.id = 'plaintext';
+      plaintext.textContent = `Plaintext:\n
+${results.APlaintext}\n
+${results.LPlaintext}\n
+${results.UPlaintext}`
+      document.getElementById('solution').appendChild(fragment);
+      fragment = document.createDocumentFragment();
+      fragment.appendChild(document.createElement('p')).textContent = `$$\\begin{align*}
+  L_0 &= ${results.L_0String} \\\\[0.5em]
+  L_*^{-1} &= ${results.L_starInverseString} \\\\[0.5em]
+  L_* &= ${results.L_starString} \\\\[0.5em]
+  \\mathscr{U} &= ${results.U_0String}
+\\end{align*}$$`;
+      plaintext = fragment.appendChild(document.createElement('p'));
+      plaintext.id = 'plaintext';
+      plaintext.textContent = `Plaintext:\n
+${results.L_0Plaintext}\n
+${results.L_starInversePlaintext}\n
+${results.L_starPlaintext}\n
+${results.U_0Plaintext}`
+      document.getElementById('details').appendChild(fragment);
+      document.getElementById('details').hidden = false;
       MathJax.typeset();
-      solution.innerHTML += '<p id="plaintext">Plaintext:\r\n\r\n[' + nerdamer('A').toString().slice(7, -1) + ']\r\n\r\n[' + nerdamer('L').toString().slice(7, -1) + ']\r\n\r\n[' + nerdamer('U').toString().slice(7, -1) + ']';
     }
-    function LUNoPivot(matrixString) {
-      nerdamer.clearVars();
-      solution.innerHTML = '';
-      note.innerHTML = '';
-      anyNumberCount = 0;
-      try {
-        nerdamer.setVar('A', 'matrix(' + matrixString.slice(1, -1) + ')');
-      } catch (e) {
-        note.innerHTML += '<p>Improper format, see usage notes.';
-        return;
-      }
-      if (matrixString.includes('A') || matrixString.includes('L') || matrixString.includes('U')
-          || matrixString.includes('z_') || matrixString.includes('num')) {
-        note.innerHTML += '<p>Improper format, cannot have "A", "L", "U", "z_", or "num" in the input. See usage notes.'; 
-        return;
-      }
-      // m is number of rows
-      var m = nerdamer('size(A)').symbol[1].multiplier.num.value;
-      // n is number of columns
-      var n = nerdamer('size(A)').symbol[0].multiplier.num.value;
-      // start L as an identity matrix of size m
-      nerdamer.setVar('L', 'imatrix(' + m + ')');
-      // start U as copy of A (m x n) but with all values as 0 
-      nerdamer.setVar('U', nerdamer('A').toString());
-      for (let i = 0; i < m; i++) {
-        for (let j = 0; j < n; j++) {
-          nerdamer.setVar('U', 'matset(U, ' + i + ', ' + j + ', 0)');
+    function useWorker(matrixString) { 
+        // no need to recalculate if input is the same
+        if (matrixString === previousInput) {
+          return;
+        } else {
+          previousInput = matrixString;
         }
-      }
-      if (croutDecompose(m, n) === -1) {
-        return;
-      }
-      displayResults();
-      // consider additional solutions
-      if (anyNumberCount > 0 && additionalSolutionsPresent(m, n)) {
-        solution.innerHTML += '<p class="description">Finding additional solutions may take a while.';
-        solution.innerHTML += '<input type="button" style="position: relative; left: 50%; transform: translateX(-50%);" value="Try to find additional solutions" onclick="this.disabled = true; findAdditionalLU(' + m + ', ' + n + ');">';
-      }
+        cleanElements();
+        // only terminate Worker if running
+        if (workerRunning) {
+          myWorker.terminate();
+          console.log("Terminating Worker");
+          myWorker = new Worker("worker.js");
+          workerRunning = false;
+        }
+        workerRunning = true;
+        myWorker.postMessage(matrixString);
+        myWorker.onmessage = (e) => {
+          workerRunning = false;
+          if (!e.data) { // if null
+            displayNote('Improper format, see usage notes.');
+          } else {
+            displayResults(e.data);
+          }
+        }
     }
     document.addEventListener('keyup', function(event) {
       if (event.keyCode === 13) {
         event.preventDefault();
-        LUNoPivot(document.getElementById('matrix').value);
+        if (window.Worker) {
+          useWorker(document.getElementById('matrix').value);
+        } else {
+          console.log("Your browser doesn't support web workers.");
+        }
       }
     });
     if (window.CSS && CSS.supports("color", "var(--primary)")) {
